@@ -28,6 +28,8 @@ export interface Settings {
   trackBP: boolean;
   theme: 'system' | 'light' | 'dark';
   lastBackupAt: string | null;
+  /** Bumped when stored settings need a one-time upgrade */
+  settingsVersion?: number;
 }
 
 export interface Product {

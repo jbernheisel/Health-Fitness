@@ -44,7 +44,7 @@ test('Oikos shake adds 30g protein and 170 cal, survives refresh, and removes cl
 
 test('navigation reaches every section and survives refresh', async ({ page }) => {
   await open(page);
-  await expect(page.getByTestId('program-day')).toHaveText(/Day 1 of 60/);
+  await expect(page.getByTestId('program-day')).toHaveText(/Day 1 of 90/);
   for (const [tab, eyebrow] of [['food', 'Food & Protein'], ['activity', 'Activity & Strength'], ['health', 'Wegovy & Health'], ['results', 'Results & Trends'], ['today', "Today's Check-in"]] as const) {
     await nav(page, tab);
     await expect(page.locator('.eyebrow')).toHaveText(eyebrow);
@@ -169,7 +169,7 @@ test('date navigation keeps days separate and the app follows the clock past mid
   await expect(page.getByTestId('current-date')).toHaveText('Monday, November 2');
   await page.getByTestId('today-steps-input').fill('4200');
   await page.getByTestId('next-day').click();
-  await expect(page.getByTestId('program-day')).toContainText('Day 2 of 60');
+  await expect(page.getByTestId('program-day')).toContainText('Day 2 of 90');
   await expect(page.getByTestId('today-steps-input')).toHaveValue('');
   await page.getByTestId('go-today').click();
   await expect(page.getByTestId('today-steps-input')).toHaveValue('4200');
@@ -182,7 +182,7 @@ test('date navigation keeps days separate and the app follows the clock past mid
   await page.clock.setFixedTime(new Date('2026-11-03T08:01:00Z'));
   await page.evaluate(() => window.dispatchEvent(new Event('focus')));
   await expect(page.getByTestId('current-date')).toHaveText('Tuesday, November 3');
-  await expect(page.getByTestId('program-day')).toContainText('Day 2 of 60');
+  await expect(page.getByTestId('program-day')).toContainText('Day 2 of 90');
   await expect(page.getByTestId('today-steps-input')).toHaveValue('');
 });
 
@@ -327,4 +327,59 @@ test('layout has no horizontal overflow on every screen', async ({ page }) => {
     const overflow = await page.evaluate(() => document.documentElement.scrollWidth - window.innerWidth);
     expect(overflow, `overflow on ${tab}`).toBeLessThanOrEqual(1);
   }
+});
+
+async function seedOldInstall(page: Page, programEnd: string) {
+  // Recreate settings saved by the original 60-day version, plus an edited jerky item.
+  await page.evaluate(async (end) => {
+    const db: IDBDatabase = await new Promise((res, rej) => { const r = indexedDB.open('momentum', 1); r.onsuccess = () => res(r.result); r.onerror = () => rej(r.error); });
+    const tx = db.transaction(['kv', 'products'], 'readwrite');
+    const kv = tx.objectStore('kv');
+    const old: Record<string, unknown> = await new Promise((res) => { const r = kv.get('settings'); r.onsuccess = () => res(r.result); });
+    delete old.settingsVersion;
+    old.programEnd = end;
+    old.stepTargets = [
+      { fromWeek: 1, toWeek: 1, target: 3500 }, { fromWeek: 2, toWeek: 2, target: 4000 }, { fromWeek: 3, toWeek: 3, target: 4500 },
+      { fromWeek: 4, toWeek: 4, target: 5000 }, { fromWeek: 5, toWeek: 6, target: 5500 }, { fromWeek: 7, toWeek: 9, target: 6000 },
+    ];
+    kv.put(old, 'settings');
+    tx.objectStore('products').put({ id: 'tillamook-jerky', name: 'Tillamook Zero Sugar Jerky', detail: 'Original beef', calories: 70, protein: 13, fiber: null, kind: 'food', builtIn: true, order: 3 });
+    await new Promise((res) => { tx.oncomplete = res; });
+    db.close();
+  }, programEnd);
+}
+
+test('existing 60-day installs upgrade to 90 days without losing edits', async ({ page }) => {
+  await open(page);
+  await seedOldInstall(page, '2026-12-31');
+  await page.reload();
+  await expect(page.getByTestId('program-day')).toHaveText(/Day 1 of 90/);
+  await nav(page, 'food');
+  await page.getByTestId('quick-tillamook-jerky').click();
+  await expect(page.getByTestId('food-calories-total')).toHaveText('70');
+  await expect(page.getByTestId('food-protein-total')).toHaveText('13g');
+  // Upgrade is one-time: the new end date is saved and survives another reload.
+  await page.reload();
+  await expect(page.getByTestId('program-day')).toHaveText(/Day 1 of 90/);
+  // Week 13 (day 85) still has a step target.
+  await page.getByTestId('date-input').fill('2027-01-25');
+  await nav(page, 'activity');
+  await expect(page.getByTestId('steps-today')).toBeVisible();
+  await expect(page.getByText('Week 13 target 6,000')).toBeVisible();
+});
+
+test('a custom end date chosen by the user is not overwritten by the upgrade', async ({ page }) => {
+  await open(page);
+  await seedOldInstall(page, '2026-12-15');
+  await page.reload();
+  await expect(page.getByTestId('program-day')).toHaveText(/Day 1 of 44/);
+});
+
+test('results cover three 30-day blocks and day 30/60/90 reviews', async ({ page }) => {
+  await open(page);
+  await nav(page, 'results');
+  await expect(page.getByTestId('comparison').locator('th')).toHaveText(['', 'Days 1–30', 'Days 31–60', 'Days 61–90']);
+  for (const d of [30, 60, 90]) await expect(page.getByTestId(`review-${d}`)).toBeVisible();
+  await page.getByRole('tab', { name: '90 days' }).click();
+  await expect(page.getByRole('tab', { name: '90 days' })).toHaveAttribute('aria-selected', 'true');
 });

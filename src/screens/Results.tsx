@@ -6,7 +6,7 @@ import { addDays, formatShort, rangeDates } from '../lib/dates';
 import { allDatesRange, fmt, latestWeight, mean, metricsFor, periodSummary, programDay, programLength, rolling, weekSummaries, type PeriodSummary } from '../lib/calc';
 import { useStore } from '../lib/store';
 
-type Range = '7' | '30' | '60' | 'all';
+type Range = '7' | '30' | '60' | '90' | 'all';
 
 export default function Results({ today }: ScreenProps) {
   const s = useStore();
@@ -38,12 +38,16 @@ export default function Results({ today }: ScreenProps) {
   const pts = (k: 'weight' | 'calories' | 'protein' | 'steps' | 'symptoms' | 'bpSys' | 'bpDia' | 'hr') => m.map((x) => ({ date: x.date, value: x[k] }));
 
   const len = programLength(st);
-  const half = Math.min(30, len);
-  const p1 = periodSummary('Days 1–30', pm, st.programStart, addDays(st.programStart, half - 1), today);
-  const p2 = periodSummary(`Days 31–${len}`, pm, addDays(st.programStart, half), st.programEnd, today);
+  // 30-day blocks across the program (1–30, 31–60, 61–90 …); the last block may be shorter.
+  const blocks: PeriodSummary[] = [];
+  for (let a = 1; a <= len; a += 30) {
+    const b = Math.min(len, a + 29);
+    blocks.push(periodSummary(`Days ${a}–${b}`, pm, addDays(st.programStart, a - 1), addDays(st.programStart, b - 1), today));
+  }
   const pdToday = programDay(st, today);
-  const review30 = periodSummary('Day 30 review', pm, st.programStart, addDays(st.programStart, 29), today);
-  const review60 = periodSummary(`Day ${len} review`, pm, st.programStart, st.programEnd, today);
+  // Cumulative reviews at day 30, 60, 90 … and at the final day.
+  const checkpoints = [...new Set([...Array.from({ length: Math.floor(len / 30) }, (_, i) => (i + 1) * 30), len])];
+  const reviews = checkpoints.map((d) => ({ day: d, p: periodSummary(`Day ${d} review`, pm, st.programStart, addDays(st.programStart, d - 1), today) }));
 
   return (
     <div className="screen results">
@@ -62,7 +66,7 @@ export default function Results({ today }: ScreenProps) {
 
       <div className="filter-row">
         <span className="muted">Charts show</span>
-        <RangeTabs value={range} onChange={setRange} options={[{ value: '7', label: '7 days' }, { value: '30', label: '30 days' }, { value: '60', label: '60 days' }, { value: 'all', label: 'All time' }]} />
+        <RangeTabs value={range} onChange={setRange} options={[{ value: '7', label: '7 days' }, { value: '30', label: '30 days' }, { value: '60', label: '60 days' }, { value: '90', label: '90 days' }, { value: 'all', label: 'All time' }]} />
       </div>
 
       <div className="grid two">
@@ -115,19 +119,20 @@ export default function Results({ today }: ScreenProps) {
         </Card>
       </div>
 
-      <Card title="First 30 days vs. second 30 days" testId="comparison">
-        <CompareTable a={p1} b={p2} />
+      <Card title={blocks.length > 1 ? `30-day blocks compared` : 'Program summary'} testId="comparison">
+        <CompareTable periods={blocks} />
       </Card>
 
-      <div className="grid two">
-        <Review title="Day 30 review" p={review30} reached={pdToday >= 30} unlock={addDays(st.programStart, 29)} startWeight={st.startWeight} testId="review-30" />
-        <Review title={`Day ${len} review`} p={review60} reached={pdToday >= len} unlock={st.programEnd} startWeight={st.startWeight} testId="review-60" />
+      <div className="grid three">
+        {reviews.map((r) => (
+          <Review key={r.day} title={`Day ${r.day} review`} p={r.p} reached={pdToday >= r.day} unlock={addDays(st.programStart, r.day - 1)} startWeight={st.startWeight} testId={`review-${r.day}`} />
+        ))}
       </div>
     </div>
   );
 }
 
-function CompareTable({ a, b }: { a: PeriodSummary; b: PeriodSummary }) {
+function CompareTable({ periods }: { periods: PeriodSummary[] }) {
   const rows: [string, (p: PeriodSummary) => string][] = [
     ['Days so far', (p) => String(p.daysElapsed)],
     ['Weight change', (p) => (p.weightReadings >= 2 ? `${fmt(p.lastWeight! - p.firstWeight!, 1)} lb (${p.weightReadings} readings)` : 'Not enough data')],
@@ -143,8 +148,8 @@ function CompareTable({ a, b }: { a: PeriodSummary; b: PeriodSummary }) {
   return (
     <div className="table-scroll">
       <table className="data-table compare">
-        <thead><tr><th></th><th>{a.label}</th><th>{b.label}</th></tr></thead>
-        <tbody>{rows.map(([l, f]) => <tr key={l}><td>{l}</td><td>{f(a)}</td><td>{b.daysElapsed ? f(b) : 'Not started'}</td></tr>)}</tbody>
+        <thead><tr><th></th>{periods.map((p) => <th key={p.label}>{p.label}</th>)}</tr></thead>
+        <tbody>{rows.map(([l, f]) => <tr key={l}><td>{l}</td>{periods.map((p) => <td key={p.label}>{p.daysElapsed ? f(p) : 'Not started'}</td>)}</tr>)}</tbody>
       </table>
     </div>
   );

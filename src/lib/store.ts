@@ -56,7 +56,15 @@ export function normalizeDay(d: Partial<DayLog> & { date: string }): DayLog {
 }
 
 export function normalizeSettings(s: Partial<Settings> | undefined): Settings {
-  return { ...DEFAULT_SETTINGS, ...(s ?? {}) };
+  const out: Settings = { ...DEFAULT_SETTINGS, ...(s ?? {}) };
+  // v2: the program went from 60 to 90 days. Only move the end date if it is
+  // still the original default; a date the user picked themselves is left alone.
+  if ((s?.settingsVersion ?? 1) < 2) {
+    if (out.programStart === '2026-11-02' && out.programEnd === '2026-12-31') out.programEnd = '2027-01-30';
+    out.stepTargets = out.stepTargets.map((t) => (t.fromWeek === 7 && t.toWeek === 9 ? { ...t, toWeek: 13 } : t));
+    out.settingsVersion = 2;
+  }
+  return out;
 }
 
 async function save(label: string, fn: () => Promise<void>) {
@@ -75,7 +83,7 @@ export async function initStore() {
     const data = await db.loadAll();
     let settings = normalizeSettings(data.settings);
     let products = data.products;
-    if (!data.settings) await db.putSettings(settings);
+    if (!data.settings || data.settings.settingsVersion !== settings.settingsVersion) await db.putSettings(settings);
     if (!data.settings && products.length === 0) {
       products = DEFAULT_PRODUCTS;
       for (const p of products) await db.putProduct(p);

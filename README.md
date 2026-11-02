@@ -1,6 +1,6 @@
 # Momentum
 
-A personal health and weight-loss check-in for a 60-day oral Wegovy program (Nov 2 – Dec 31, 2026). It's built for iPad Safari and takes under two minutes a day.
+A personal health and weight-loss check-in for a 90-day oral Wegovy program (Nov 2, 2026 – Jan 30, 2027). It's built for iPad Safari and takes under two minutes a day.
 
 Everything stays on the device. There's no account, no server, and no health data leaves the browser.
 
@@ -17,7 +17,7 @@ Everything stays on the device. There's no account, no server, and no health dat
 - **Food**: one-tap Huel / Oikos / Chobani / jerky / Monster buttons. Add custom meals with your own calories and protein, and save any of them as a quick-add button.
 - **Activity**: steps, weekly targets, strength sets, reps, and weights (carried over from your last session), plus walks and recovery days.
 - **Health**: dose, time, wait timer, symptoms (0–3), blood pressure, heart rate, water, appetite, hours fasted, weight, and notes. The titration table is reference only, and the app never changes your dose.
-- **Results**: weight, calories, protein, steps, workouts, medication, side effects, and BP over 7 / 30 / 60 days or all time. It also has a first-30 vs second-30 comparison and day-30 / day-60 reviews. Missing days stay blank. They're never counted as zero.
+- **Results**: weight, calories, protein, steps, workouts, medication, side effects, and BP over 7 / 30 / 60 / 90 days or all time. It also compares the three 30-day blocks side by side and has day-30 / day-60 / day-90 reviews. Missing days stay blank. They're never counted as zero.
 
 ### Your data
 - Stored in this browser's IndexedDB. **Not synced** between devices or browsers. Clearing Safari website data erases it.

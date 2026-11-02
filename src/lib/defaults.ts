@@ -12,7 +12,7 @@ export const DEFAULT_SETTINGS: Settings = {
   proteinGoal: 120,
   waterGoalOz: 64,
   programStart: '2026-11-02',
-  programEnd: '2026-12-31',
+  programEnd: '2027-01-30', // 90 days
   timeZone: 'America/Los_Angeles',
   stepTargets: [
     { fromWeek: 1, toWeek: 1, target: 3500 },
@@ -20,7 +20,7 @@ export const DEFAULT_SETTINGS: Settings = {
     { fromWeek: 3, toWeek: 3, target: 4500 },
     { fromWeek: 4, toWeek: 4, target: 5000 },
     { fromWeek: 5, toWeek: 6, target: 5500 },
-    { fromWeek: 7, toWeek: 9, target: 6000 },
+    { fromWeek: 7, toWeek: 13, target: 6000 },
   ],
   //            Sun     Mon         Tue     Wed         Thu     Fri         Sat
   weeklyPlan: ['walk', 'strength', 'walk', 'strength', 'walk', 'strength', 'walk'],
@@ -31,6 +31,7 @@ export const DEFAULT_SETTINGS: Settings = {
   trackBP: true,
   theme: 'system',
   lastBackupAt: null,
+  settingsVersion: 2,
 };
 
 // Nutrition values as supplied from packaging. null = not verified; the user fills it in.
